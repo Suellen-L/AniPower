@@ -19,21 +19,21 @@ const AnimeApp = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Dados mock para demonstração (fallback quando API falha)
+  // Dados para demonstração (quando API falha)
   const mockAnimes = [
-    { id: 1, title: { romaji: 'Attack on Titan' }, episodes: 24, startDate: { year: 2024 }, season: 'SUMMER', coverImage: { medium: '' } },
-    { id: 2, title: { romaji: 'Demon Slayer' }, episodes: 12, startDate: { year: 2024 }, season: 'SUMMER', coverImage: { medium: '' } },
-    { id: 3, title: { romaji: 'My Hero Academia' }, episodes: 25, startDate: { year: 2024 }, season: 'SUMMER', coverImage: { medium: '' } },
-    { id: 4, title: { romaji: 'Jujutsu Kaisen' }, episodes: 24, startDate: { year: 2024 }, season: 'SUMMER', coverImage: { medium: '' } },
-    { id: 5, title: { romaji: 'Chainsaw Man' }, episodes: 12, startDate: { year: 2024 }, season: 'FALL', coverImage: { medium: '' } },
-    { id: 6, title: { romaji: 'Spy x Family' }, episodes: 12, startDate: { year: 2024 }, season: 'FALL', coverImage: { medium: '' } },
-  ];
+    { id: 1, title: 'Attack on Titan', episodes: 24, year: 2024, season: 'Verão', emoji: '🏛️' },
+    { id: 2, title: 'Demon Slayer', episodes: 12, year: 2024, season: 'Verão', emoji: '⚔️' },
+    { id: 3, title: 'My Hero Academia', episodes: 25, year: 2024, season: 'Verão', emoji: '🦸' },
+    { id: 4, title: 'Jujutsu Kaisen', episodes: 24, year: 2024, season: 'Verão', emoji: '👹' },
+    { id: 5, title: 'Chainsaw Man', episodes: 12, year: 2024, season: 'Outono', emoji: '🔗' },
+    { id: 6, title: 'Spy x Family', episodes: 12, year: 2024, season: 'Outono', emoji: '🕵️' },
+  ]
 
   const mockMangas = [
-    { id: 1, title: { romaji: 'One Piece' }, chapters: 1090, status: 'RELEASING', genres: ['Action'], coverImage: { medium: '' } },
-    { id: 2, title: { romaji: 'Naruto' }, chapters: 700, status: 'FINISHED', genres: ['Action'], coverImage: { medium: '' } },
-    { id: 3, title: { romaji: 'Dragon Ball' }, chapters: 519, status: 'FINISHED', genres: ['Action'], coverImage: { medium: '' } },
-    { id: 4, title: { romaji: 'Bleach' }, chapters: 686, status: 'FINISHED', genres: ['Action'], coverImage: { medium: '' } },
+    { id: 1, title: 'One Piece', chapters: 1090, status: 'Ongoing', category: 'Ação', emoji: '🏴‍☠️' },
+    { id: 2, title: 'Naruto', chapters: 700, status: 'Completed', category: 'Ação', emoji: '🍥' },
+    { id: 3, title: 'Dragon Ball', chapters: 519, status: 'Completed', category: 'Ação', emoji: '🐉' },
+    { id: 4, title: 'Bleach', chapters: 686, status: 'Completed', category: 'Ação', emoji: '⚔️' },
   ];
 
   useEffect(() => {
@@ -41,7 +41,6 @@ const AnimeApp = () => {
     loadSearchHistory();
   }, []);
 
-  // GraphQL queries
   const getAnimeQuery = () => ({
     query: `
       query {
@@ -124,7 +123,6 @@ const AnimeApp = () => {
     }
   });
 
-  // Função para fazer requisições GraphQL
   const makeGraphQLRequest = async (query) => {
     try {
       console.log('Fazendo requisição GraphQL para:', API_BASE_URL);
@@ -159,13 +157,11 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para carregar dados do backend
   const loadData = async () => {
     setLoading(true);
     console.log('Iniciando carregamento de dados...');
     
     try {
-      // Carregar animes
       console.log('Carregando animes...');
       const animeResult = await makeGraphQLRequest(getAnimeQuery());
       
@@ -177,7 +173,6 @@ const AnimeApp = () => {
         setAnimes(mockAnimes);
       }
 
-      // Carregar mangás
       console.log('Carregando mangás...');
       const mangaResult = await makeGraphQLRequest(getMangaQuery());
       
@@ -200,7 +195,6 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para pesquisar na API
   const searchAPI = async (query) => {
     if (!query.trim()) return;
 
@@ -216,7 +210,6 @@ const AnimeApp = () => {
         return searchResult.data.Page.media;
       } else {
         console.log('Falha na pesquisa da API, usando busca local');
-        // Busca local nos dados mock como fallback
         const localAnimes = mockAnimes.filter(anime => 
           anime.title.romaji.toLowerCase().includes(query.toLowerCase())
         );
@@ -238,7 +231,6 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para salvar pesquisa no histórico (local apenas - sem API para histórico)
   const saveSearchHistory = async (query) => {
     try {
       const newHistoryItem = {
@@ -256,13 +248,10 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para carregar histórico de pesquisas (local apenas)
   const loadSearchHistory = async () => {
-    // Como não há endpoint específico para histórico, mantemos apenas local
     console.log('Histórico carregado do armazenamento local');
   };
 
-  // Função para limpar histórico
   const clearHistory = async () => {
     Alert.alert(
       'Limpar Histórico',
@@ -281,7 +270,6 @@ const AnimeApp = () => {
     );
   };
 
-  // Função de pesquisa
   const handleSearch = async (query) => {
     if (query.trim()) {
       const cleanQuery = query.trim();
@@ -290,7 +278,6 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para obter emoji baseado no gênero
   const getEmojiForGenre = (genres) => {
     if (!genres || genres.length === 0) return '📺';
     
@@ -313,7 +300,6 @@ const AnimeApp = () => {
     return emojiMap[genre] || '📺';
   };
 
-  // Função para traduzir season
   const translateSeason = (season, year) => {
     const seasonMap = {
       'WINTER': 'Inverno',
@@ -324,7 +310,6 @@ const AnimeApp = () => {
     return `${seasonMap[season] || season || ''} ${year || ''}`.trim();
   };
 
-  // Função para traduzir status
   const translateStatus = (status) => {
     const statusMap = {
       'RELEASING': 'Em Andamento',
@@ -336,7 +321,6 @@ const AnimeApp = () => {
     return statusMap[status] || status || 'Desconhecido';
   };
 
-  // Componente para renderizar anime
   const renderAnime = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
       <Text style={styles.cardEmoji}>{getEmojiForGenre(item.genres)}</Text>
@@ -355,7 +339,6 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
-  // Componente para renderizar manga
   const renderManga = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
       <Text style={styles.cardEmoji}>{getEmojiForGenre(item.genres)}</Text>
@@ -377,7 +360,6 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
-  // Componente para renderizar resultado de pesquisa
   const renderSearchResult = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
       <Text style={styles.cardEmoji}>
@@ -401,7 +383,6 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
-  // Componente para renderizar histórico
   const renderHistory = ({ item }) => (
     <TouchableOpacity 
       style={styles.historyItem}
@@ -427,7 +408,6 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
-  // Agrupar dados por temporada/categoria
   const groupAnimesBySeason = () => {
     const dataToGroup = searchResults.length > 0 
       ? searchResults.filter(item => item.type === 'ANIME' || !item.type)
@@ -472,11 +452,9 @@ const AnimeApp = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1e3a8a" />
       
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>AniPower</Text>
         
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Text style={styles.searchIconText}>🔍</Text>
           <TextInput
@@ -494,7 +472,6 @@ const AnimeApp = () => {
         </View>
       </View>
 
-      {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'animes' && (
           <View style={styles.tabContent}>
@@ -597,7 +574,6 @@ const AnimeApp = () => {
         )}
       </ScrollView>
 
-      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity
           style={[styles.navButton, activeTab === 'animes' && styles.navButtonActive]}
