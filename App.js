@@ -1,6 +1,5 @@
 // App.js - React Native Mobile App
 import React, { useState, useEffect } from 'react';
-import * as ReactNative from 'react-native';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, FlatList, Dimensions, ActivityIndicator } from 'react-native';
 
 const { width } = Dimensions.get('window');
@@ -9,7 +8,7 @@ const API_HEADERS = {
   'X-RapidAPI-Key': '06cdd2fb15msh225e37488a3c5e9p1b6111jsn8fb0e3cd543c',
   'X-RapidAPI-Host': 'anilistmikilior1v1.p.rapidapi.com',
   'Content-Type': 'application/json'
-};// Para dispositivo físico: 'http://SEU_IP:80/anime_api'
+};
 
 const AnimeApp = () => {
   const [activeTab, setActiveTab] = useState('animes');
@@ -18,8 +17,10 @@ const AnimeApp = () => {
   const [animes, setAnimes] = useState([]);
   const [mangas, setMangas] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
 
-  // Dados mock para demonstração (substitua pelas chamadas da API)
+  // Dados mock para demonstração (fallback quando API falha)
   const mockAnimes = [
     { id: 1, title: 'Attack on Titan', episodes: 24, year: 2024, season: 'Verão', emoji: '🏛️' },
     { id: 2, title: 'Demon Slayer', episodes: 12, year: 2024, season: 'Verão', emoji: '⚔️' },
@@ -27,16 +28,6 @@ const AnimeApp = () => {
     { id: 4, title: 'Jujutsu Kaisen', episodes: 24, year: 2024, season: 'Verão', emoji: '👹' },
     { id: 5, title: 'Chainsaw Man', episodes: 12, year: 2024, season: 'Outono', emoji: '🔗' },
     { id: 6, title: 'Spy x Family', episodes: 12, year: 2024, season: 'Outono', emoji: '🕵️' },
-    { id: 7, title: 'Mob Psycho 100', episodes: 12, year: 2024, season: 'Outono', emoji: '👻' },
-    { id: 8, title: 'Blue Lock', episodes: 24, year: 2024, season: 'Outono', emoji: '⚽' },
-    { id: 9, title: 'Tokyo Revengers', episodes: 24, year: 2024, season: 'Inverno', emoji: '🏍️' },
-    { id: 10, title: 'Horimiya', episodes: 13, year: 2024, season: 'Inverno', emoji: '💕' },
-    { id: 11, title: 'Dr. Stone', episodes: 11, year: 2024, season: 'Inverno', emoji: '🧪' },
-    { id: 12, title: 'The Promised Neverland', episodes: 11, year: 2024, season: 'Inverno', emoji: '🏠' },
-    { id: 13, title: 'Kaguya-sama', episodes: 12, year: 2024, season: 'Primavera', emoji: '🎭' },
-    { id: 14, title: 'One Punch Man', episodes: 12, year: 2024, season: 'Primavera', emoji: '👊' },
-    { id: 15, title: 'Overlord', episodes: 13, year: 2024, season: 'Primavera', emoji: '💀' },
-    { id: 16, title: 'Re:Zero', episodes: 25, year: 2024, season: 'Primavera', emoji: '🔄' },
   ];
 
   const mockMangas = [
@@ -44,18 +35,6 @@ const AnimeApp = () => {
     { id: 2, title: 'Naruto', chapters: 700, status: 'Completed', category: 'Ação', emoji: '🍥' },
     { id: 3, title: 'Dragon Ball', chapters: 519, status: 'Completed', category: 'Ação', emoji: '🐉' },
     { id: 4, title: 'Bleach', chapters: 686, status: 'Completed', category: 'Ação', emoji: '⚔️' },
-    { id: 5, title: 'Kaguya-sama', chapters: 281, status: 'Completed', category: 'Romance', emoji: '💕' },
-    { id: 6, title: 'Rent-a-Girlfriend', chapters: 300, status: 'Ongoing', category: 'Romance', emoji: '📱' },
-    { id: 7, title: 'Toradora!', chapters: 87, status: 'Completed', category: 'Romance', emoji: '🐅' },
-    { id: 8, title: 'Nisekoi', chapters: 229, status: 'Completed', category: 'Romance', emoji: '🔑' },
-    { id: 9, title: 'Hunter x Hunter', chapters: 400, status: 'Hiatus', category: 'Aventura', emoji: '🎯' },
-    { id: 10, title: 'Fairy Tail', chapters: 545, status: 'Completed', category: 'Aventura', emoji: '🧚' },
-    { id: 11, title: 'Seven Deadly Sins', chapters: 346, status: 'Completed', category: 'Aventura', emoji: '🗡️' },
-    { id: 12, title: 'Black Clover', chapters: 370, status: 'Ongoing', category: 'Aventura', emoji: '🍀' },
-    { id: 13, title: 'Yotsuba&!', chapters: 110, status: 'Ongoing', category: 'Slice of Life', emoji: '🌸' },
-    { id: 14, title: 'Azumanga Daioh', chapters: 69, status: 'Completed', category: 'Slice of Life', emoji: '🏫' },
-    { id: 15, title: 'K-On!', chapters: 57, status: 'Completed', category: 'Slice of Life', emoji: '🎸' },
-    { id: 16, title: 'Lucky Star', chapters: 83, status: 'Completed', category: 'Slice of Life', emoji: '⭐' },
   ];
 
   useEffect(() => {
@@ -63,66 +42,114 @@ const AnimeApp = () => {
     loadSearchHistory();
   }, []);
 
+  // Função para fazer requisição à API com tratamento de erro
+  const makeAPIRequest = async (endpoint, options = {}) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+        headers: API_HEADERS,
+        ...options
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return { success: true, data };
+    } catch (error) {
+      console.error(`API Request failed for ${endpoint}:`, error);
+      return { success: false, error: error.message };
+    }
+  };
+
   // Função para carregar dados do backend
   const loadData = async () => {
-  setLoading(true);
-  try {
-    const [animesResponse, mangasResponse] = await Promise.all([
-      fetch(`${API_BASE_URL}/anime`, {
-        method: 'GET',
-        headers: API_HEADERS
-      }),
-      fetch(`${API_BASE_URL}/manga`, {
-        method: 'GET',
-        headers: API_HEADERS
-      })
-    ]);
-    
+    setLoading(true);
+    try {
+      // Tentar carregar da API primeiro
+      const [animesResult, mangasResult] = await Promise.all([
+        makeAPIRequest('/anime'),
+        makeAPIRequest('/manga')
+      ]);
 
-      if (animesResponse.ok && mangasResponse.ok) {
-        const animesData = await animesResponse.json();
-        const mangasData = await mangasResponse.json();
-        setAnimes(animesData);
-        setMangas(mangasData);
+      if (animesResult.success && mangasResult.success) {
+        setAnimes(animesResult.data);
+        setMangas(mangasResult.data);
       } else {
-        throw new Error('Failed to fetch data');
-      }
-      
-      
-      // Simulação com dados mock
-      setTimeout(() => {
+        // Fallback para dados mock
+        console.log('API falhou, usando dados mock');
         setAnimes(mockAnimes);
         setMangas(mockMangas);
-        setLoading(false);
-      }, 1000);
-      
+      }
     } catch (error) {
       console.error('Error loading data:', error);
-      Alert.alert('Erro', 'Falha ao carregar dados. Usando dados offline.');
+      Alert.alert('Aviso', 'Usando dados offline devido a problemas de conexão.');
       setAnimes(mockAnimes);
       setMangas(mockMangas);
+    } finally {
       setLoading(false);
+    }
+  };
+
+  // Função para pesquisar na API
+  const searchAPI = async (query) => {
+    if (!query.trim()) return;
+
+    setIsSearching(true);
+    try {
+      // Pesquisar animes e mangás
+      const [animeResult, mangaResult] = await Promise.all([
+        makeAPIRequest(`/anime/search?q=${encodeURIComponent(query)}`),
+        makeAPIRequest(`/manga/search?q=${encodeURIComponent(query)}`)
+      ]);
+
+      const results = [];
+      
+      if (animeResult.success && animeResult.data) {
+        results.push(...animeResult.data.map(item => ({ ...item, type: 'anime' })));
+      }
+      
+      if (mangaResult.success && mangaResult.data) {
+        results.push(...mangaResult.data.map(item => ({ ...item, type: 'manga' })));
+      }
+
+      if (results.length === 0) {
+        // Busca local nos dados mock como fallback
+        const localAnimes = mockAnimes.filter(anime => 
+          anime.title.toLowerCase().includes(query.toLowerCase())
+        ).map(item => ({ ...item, type: 'anime' }));
+        
+        const localMangas = mockMangas.filter(manga => 
+          manga.title.toLowerCase().includes(query.toLowerCase())
+        ).map(item => ({ ...item, type: 'manga' }));
+
+        results.push(...localAnimes, ...localMangas);
+      }
+
+      setSearchResults(results);
+      return results;
+    } catch (error) {
+      console.error('Search error:', error);
+      Alert.alert('Erro', 'Falha na pesquisa. Tente novamente.');
+      return [];
+    } finally {
+      setIsSearching(false);
     }
   };
 
   // Função para salvar pesquisa no histórico
   const saveSearchHistory = async (query) => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/search`, {
-      method: 'POST',
-      headers: API_HEADERS,
-      body: JSON.stringify({
-        query: query,
-        search_date: new Date().toISOString()
-      }),
-    });
+    try {
+      // Tentar salvar na API
+      const result = await makeAPIRequest('/search-history', {
+        method: 'POST',
+        body: JSON.stringify({
+          query: query,
+          search_date: new Date().toISOString()
+        })
+      });
 
-      if (response.ok) {
-        loadSearchHistory();
-      }
-      
-      
-      // Simulação para demonstração
+      // Atualizar estado local independentemente do sucesso da API
       const newHistoryItem = {
         id: Date.now(),
         query: query,
@@ -130,31 +157,33 @@ const AnimeApp = () => {
       };
       
       setSearchHistory(prev => {
-        const filtered = prev.filter(item => item.query !== query);
+        const filtered = prev.filter(item => item.query.toLowerCase() !== query.toLowerCase());
         return [newHistoryItem, ...filtered].slice(0, 20);
       });
-      
+
+      if (result.success) {
+        // Recarregar histórico da API se salvou com sucesso
+        loadSearchHistory();
+      }
     } catch (error) {
       console.error('Error saving search:', error);
+      // Mesmo com erro na API, mantém o histórico local
     }
   };
 
   // Função para carregar histórico de pesquisas
   const loadSearchHistory = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/search-history`, {
-      method: 'GET',
-      headers: API_HEADERS
-    });
-    
-    if (response.ok) {
-      const historyData = await response.json();
-      setSearchHistory(historyData.data || historyData);
+    try {
+      const result = await makeAPIRequest('/search-history');
+      
+      if (result.success && result.data) {
+        const historyData = Array.isArray(result.data) ? result.data : result.data.data || [];
+        setSearchHistory(historyData);
+      }
+    } catch (error) {
+      console.error('Error loading search history:', error);
     }
-  } catch (error) {
-    console.error('Error loading search history:', error);
-  }
-};
+  };
 
   // Função para limpar histórico
   const clearHistory = async () => {
@@ -168,22 +197,23 @@ const AnimeApp = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Em produção, descomente:
-              
-              const response = await fetch(`${API_BASE_URL}/search-history`, {
-                method: 'DELETE',
-                headers: API_HEADERS
+              // Limpar na API
+              const result = await makeAPIRequest('/search-history', {
+                method: 'DELETE'
               });
 
-              if (response.ok) {
-                setSearchHistory([]);
-              }
-              
-              
-              // Simulação para demonstração
+              // Limpar estado local independentemente do resultado da API
               setSearchHistory([]);
+
+              if (result.success) {
+                Alert.alert('Sucesso', 'Histórico limpo com sucesso!');
+              } else {
+                Alert.alert('Aviso', 'Histórico limpo localmente. Problemas de conexão com servidor.');
+              }
             } catch (error) {
-              Alert.alert('Erro', 'Falha ao limpar histórico');
+              console.error('Error clearing history:', error);
+              setSearchHistory([]); // Limpa localmente mesmo com erro
+              Alert.alert('Aviso', 'Histórico limpo localmente. Verifique sua conexão.');
             }
           }
         }
@@ -192,35 +222,57 @@ const AnimeApp = () => {
   };
 
   // Função de pesquisa
-  const handleSearch = (query) => {
+  const handleSearch = async (query) => {
     if (query.trim()) {
-      saveSearchHistory(query.trim());
-      // Implementar lógica de filtro aqui se necessário
+      const cleanQuery = query.trim();
+      await saveSearchHistory(cleanQuery);
+      await searchAPI(cleanQuery);
     }
   };
 
   // Componente para renderizar anime
   const renderAnime = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-      <Text style={styles.cardEmoji}>{item.emoji}</Text>
+      <Text style={styles.cardEmoji}>{item.emoji || '📺'}</Text>
       <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-      <Text style={styles.cardSubtitle}>{item.episodes} episódios</Text>
-      <Text style={styles.cardSeason}>{item.season} {item.year}</Text>
+      <Text style={styles.cardSubtitle}>
+        {item.episodes || item.episodeCount || 'N/A'} episódios
+      </Text>
+      <Text style={styles.cardSeason}>
+        {item.season || item.startDate?.year || item.year || '2024'}
+      </Text>
     </TouchableOpacity>
   );
 
   // Componente para renderizar manga
   const renderManga = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-      <Text style={styles.cardEmoji}>{item.emoji}</Text>
+      <Text style={styles.cardEmoji}>{item.emoji || '📖'}</Text>
       <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
-      <Text style={styles.cardSubtitle}>{item.chapters} capítulos</Text>
-      <Text style={[styles.cardStatus, { 
-        color: item.status === 'Ongoing' ? '#4ade80' : 
-              item.status === 'Completed' ? '#60a5fa' : '#facc15' 
-      }]}>
-        {item.status}
+      <Text style={styles.cardSubtitle}>
+        {item.chapters || item.chapterCount || 'N/A'} capítulos
       </Text>
+      <Text style={[styles.cardStatus, { 
+        color: (item.status === 'Ongoing' || item.status === 'RELEASING') ? '#4ade80' : 
+              (item.status === 'Completed' || item.status === 'FINISHED') ? '#60a5fa' : '#facc15' 
+      }]}>
+        {item.status || 'Unknown'}
+      </Text>
+    </TouchableOpacity>
+  );
+
+  // Componente para renderizar resultado de pesquisa
+  const renderSearchResult = ({ item }) => (
+    <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+      <Text style={styles.cardEmoji}>{item.type === 'anime' ? '📺' : '📖'}</Text>
+      <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+      <Text style={styles.cardSubtitle}>
+        {item.type === 'anime' ? 
+          `${item.episodes || item.episodeCount || 'N/A'} episódios` : 
+          `${item.chapters || item.chapterCount || 'N/A'} capítulos`
+        }
+      </Text>
+      <Text style={styles.cardCategory}>{item.type === 'anime' ? 'Anime' : 'Mangá'}</Text>
     </TouchableOpacity>
   );
 
@@ -228,14 +280,23 @@ const AnimeApp = () => {
   const renderHistory = ({ item }) => (
     <TouchableOpacity 
       style={styles.historyItem}
-      onPress={() => setSearchQuery(item.query)}
+      onPress={() => {
+        setSearchQuery(item.query);
+        handleSearch(item.query);
+      }}
       activeOpacity={0.7}
     >
       <Text style={styles.searchIcon}>🔍</Text>
       <View style={styles.historyContent}>
         <Text style={styles.historyQuery}>{item.query}</Text>
         <Text style={styles.historyDate}>
-          {new Date(item.search_date).toLocaleDateString('pt-BR')}
+          {new Date(item.search_date).toLocaleDateString('pt-BR', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
         </Text>
       </View>
     </TouchableOpacity>
@@ -243,9 +304,13 @@ const AnimeApp = () => {
 
   // Agrupar dados por temporada/categoria
   const groupAnimesBySeason = () => {
+    const dataToGroup = searchResults.length > 0 
+      ? searchResults.filter(item => item.type === 'anime')
+      : animes;
+      
     const grouped = {};
-    animes.forEach(anime => {
-      const season = anime.season || 'Outros';
+    dataToGroup.forEach(anime => {
+      const season = anime.season || anime.startDate?.year || 'Outros';
       if (!grouped[season]) grouped[season] = [];
       grouped[season].push(anime);
     });
@@ -253,9 +318,13 @@ const AnimeApp = () => {
   };
 
   const groupMangasByCategory = () => {
+    const dataToGroup = searchResults.length > 0 
+      ? searchResults.filter(item => item.type === 'manga')
+      : mangas;
+      
     const grouped = {};
-    mangas.forEach(manga => {
-      const category = manga.category || 'Outros';
+    dataToGroup.forEach(manga => {
+      const category = manga.category || manga.genres?.[0] || 'Outros';
       if (!grouped[category]) grouped[category] = [];
       grouped[category].push(manga);
     });
@@ -268,7 +337,7 @@ const AnimeApp = () => {
         <StatusBar barStyle="light-content" backgroundColor="#1e3a8a" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0891b2" />
-          <Text style={styles.loadingText}>Carregando...</Text>
+          <Text style={styles.loadingText}>Carregando dados...</Text>
         </View>
       </SafeAreaView>
     );
@@ -294,6 +363,9 @@ const AnimeApp = () => {
             onSubmitEditing={() => handleSearch(searchQuery)}
             returnKeyType="search"
           />
+          {isSearching && (
+            <ActivityIndicator size="small" color="#93c5fd" style={{ marginLeft: 8 }} />
+          )}
         </View>
       </View>
 
@@ -301,13 +373,30 @@ const AnimeApp = () => {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'animes' && (
           <View style={styles.tabContent}>
+            {searchResults.length > 0 && (
+              <View style={styles.searchResultsHeader}>
+                <Text style={styles.searchResultsTitle}>
+                  🔍 Resultados da pesquisa: "{searchQuery}"
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setSearchResults([]);
+                    setSearchQuery('');
+                  }}
+                  style={styles.clearSearchButton}
+                >
+                  <Text style={styles.clearSearchText}>Limpar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            
             {Object.entries(groupAnimesBySeason()).map(([season, seasonAnimes]) => (
               <View key={season} style={styles.section}>
-                <Text style={styles.sectionTitle}>📅 {season} 2024</Text>
+                <Text style={styles.sectionTitle}>📅 {season}</Text>
                 <FlatList
                   data={seasonAnimes}
-                  renderItem={renderAnime}
-                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={searchResults.length > 0 ? renderSearchResult : renderAnime}
+                  keyExtractor={(item) => `anime-${item.id}`}
                   numColumns={2}
                   scrollEnabled={false}
                   contentContainerStyle={styles.grid}
@@ -320,13 +409,30 @@ const AnimeApp = () => {
 
         {activeTab === 'mangas' && (
           <View style={styles.tabContent}>
+            {searchResults.length > 0 && (
+              <View style={styles.searchResultsHeader}>
+                <Text style={styles.searchResultsTitle}>
+                  🔍 Resultados da pesquisa: "{searchQuery}"
+                </Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setSearchResults([]);
+                    setSearchQuery('');
+                  }}
+                  style={styles.clearSearchButton}
+                >
+                  <Text style={styles.clearSearchText}>Limpar</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+            
             {Object.entries(groupMangasByCategory()).map(([category, categoryMangas]) => (
               <View key={category} style={styles.section}>
                 <Text style={styles.sectionTitle}>📚 {category}</Text>
                 <FlatList
                   data={categoryMangas}
-                  renderItem={renderManga}
-                  keyExtractor={(item) => item.id.toString()}
+                  renderItem={searchResults.length > 0 ? renderSearchResult : renderManga}
+                  keyExtractor={(item) => `manga-${item.id}`}
                   numColumns={2}
                   scrollEnabled={false}
                   contentContainerStyle={styles.grid}
@@ -358,7 +464,7 @@ const AnimeApp = () => {
               <FlatList
                 data={searchHistory}
                 renderItem={renderHistory}
-                keyExtractor={(item) => item.id.toString()}
+                keyExtractor={(item) => `history-${item.id}`}
                 scrollEnabled={false}
               />
             )}
@@ -464,6 +570,34 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 100,
   },
+  searchResultsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+    padding: 12,
+    backgroundColor: '#1e40af',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#3b82f6',
+  },
+  searchResultsTitle: {
+    flex: 1,
+    fontSize: 14,
+    color: '#93c5fd',
+    fontWeight: '600',
+  },
+  clearSearchButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: '#ef4444',
+    borderRadius: 4,
+  },
+  clearSearchText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
   section: {
     marginBottom: 24,
   },
@@ -514,6 +648,12 @@ const styles = StyleSheet.create({
   },
   cardStatus: {
     fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  cardCategory: {
+    fontSize: 12,
+    color: '#facc15',
     fontWeight: '600',
     textAlign: 'center',
   },
