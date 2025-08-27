@@ -64,7 +64,7 @@ const AnimeApp = () => {
     setLoading(true);
     try {
       // Em produção, descomente as linhas abaixo:
-      /*
+      
       const [animesResponse, mangasResponse] = await Promise.all([
         fetch(`${API_BASE_URL}/animes.php`),
         fetch(`${API_BASE_URL}/mangas.php`)
@@ -78,7 +78,7 @@ const AnimeApp = () => {
       } else {
         throw new Error('Failed to fetch data');
       }
-      */
+      
       
       // Simulação com dados mock
       setTimeout(() => {
@@ -100,7 +100,7 @@ const AnimeApp = () => {
   const saveSearchHistory = async (query) => {
     try {
       // Em produção, descomente:
-      /*
+      
       const response = await fetch(`${API_BASE_URL}/search_history.php`, {
         method: 'POST',
         headers: {
@@ -115,7 +115,7 @@ const AnimeApp = () => {
       if (response.ok) {
         loadSearchHistory();
       }
-      */
+      
       
       // Simulação para demonstração
       const newHistoryItem = {
@@ -138,13 +138,13 @@ const AnimeApp = () => {
   const loadSearchHistory = async () => {
     try {
       // Em produção, descomente:
-      /*
+      
       const response = await fetch(`${API_BASE_URL}/search_history.php`);
       if (response.ok) {
         const historyData = await response.json();
         setSearchHistory(historyData);
       }
-      */
+      
     } catch (error) {
       console.error('Error loading search history:', error);
     }
@@ -163,7 +163,7 @@ const AnimeApp = () => {
           onPress: async () => {
             try {
               // Em produção, descomente:
-              /*
+              
               const response = await fetch(`${API_BASE_URL}/search_history.php`, {
                 method: 'DELETE',
               });
@@ -171,7 +171,7 @@ const AnimeApp = () => {
               if (response.ok) {
                 setSearchHistory([]);
               }
-              */
+              
               
               // Simulação para demonstração
               setSearchHistory([]);
@@ -273,7 +273,7 @@ const AnimeApp = () => {
       
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>AnimeHub</Text>
+        <Text style={styles.headerTitle}>AniPower</Text>
         
         {/* Search Bar */}
         <View style={styles.searchContainer}>
