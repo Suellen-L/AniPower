@@ -4,8 +4,12 @@ import * as ReactNative from 'react-native';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, FlatList, Dimensions, ActivityIndicator } from 'react-native';
 
 const { width } = Dimensions.get('window');
-const API_BASE_URL = 'http://10.0.2.2/anime_api'; // Para Android Emulator
-// Para dispositivo físico: 'http://SEU_IP:80/anime_api'
+const API_BASE_URL = 'https://anilistmikilior1v1.p.rapidapi.com';
+const API_HEADERS = {
+  'X-RapidAPI-Key': '06cdd2fb15msh225e37488a3c5e9p1b6111jsn8fb0e3cd543c',
+  'X-RapidAPI-Host': 'anilistmikilior1v1.p.rapidapi.com',
+  'Content-Type': 'application/json'
+};// Para dispositivo físico: 'http://SEU_IP:80/anime_api'
 
 const AnimeApp = () => {
   const [activeTab, setActiveTab] = useState('animes');
@@ -61,14 +65,19 @@ const AnimeApp = () => {
 
   // Função para carregar dados do backend
   const loadData = async () => {
-    setLoading(true);
-    try {
-      // Em produção, descomente as linhas abaixo:
-      
-      const [animesResponse, mangasResponse] = await Promise.all([
-        fetch(`${API_BASE_URL}/animes.php`),
-        fetch(`${API_BASE_URL}/mangas.php`)
-      ]);
+  setLoading(true);
+  try {
+    const [animesResponse, mangasResponse] = await Promise.all([
+      fetch(`${API_BASE_URL}/anime`, {
+        method: 'GET',
+        headers: API_HEADERS
+      }),
+      fetch(`${API_BASE_URL}/manga`, {
+        method: 'GET',
+        headers: API_HEADERS
+      })
+    ]);
+    
 
       if (animesResponse.ok && mangasResponse.ok) {
         const animesData = await animesResponse.json();
@@ -98,19 +107,15 @@ const AnimeApp = () => {
 
   // Função para salvar pesquisa no histórico
   const saveSearchHistory = async (query) => {
-    try {
-      // Em produção, descomente:
-      
-      const response = await fetch(`${API_BASE_URL}/search_history.php`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: query,
-          search_date: new Date().toISOString()
-        }),
-      });
+  try {
+    const response = await fetch(`${API_BASE_URL}/search`, {
+      method: 'POST',
+      headers: API_HEADERS,
+      body: JSON.stringify({
+        query: query,
+        search_date: new Date().toISOString()
+      }),
+    });
 
       if (response.ok) {
         loadSearchHistory();
@@ -136,19 +141,20 @@ const AnimeApp = () => {
 
   // Função para carregar histórico de pesquisas
   const loadSearchHistory = async () => {
-    try {
-      // Em produção, descomente:
-      
-      const response = await fetch(`${API_BASE_URL}/search_history.php`);
-      if (response.ok) {
-        const historyData = await response.json();
-        setSearchHistory(historyData);
-      }
-      
-    } catch (error) {
-      console.error('Error loading search history:', error);
+  try {
+    const response = await fetch(`${API_BASE_URL}/search-history`, {
+      method: 'GET',
+      headers: API_HEADERS
+    });
+    
+    if (response.ok) {
+      const historyData = await response.json();
+      setSearchHistory(historyData.data || historyData);
     }
-  };
+  } catch (error) {
+    console.error('Error loading search history:', error);
+  }
+};
 
   // Função para limpar histórico
   const clearHistory = async () => {
@@ -164,8 +170,9 @@ const AnimeApp = () => {
             try {
               // Em produção, descomente:
               
-              const response = await fetch(`${API_BASE_URL}/search_history.php`, {
+              const response = await fetch(`${API_BASE_URL}/search-history`, {
                 method: 'DELETE',
+                headers: API_HEADERS
               });
 
               if (response.ok) {
