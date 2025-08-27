@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, FlatList, Dimensions, ActivityIndicator } from 'react-native';
+import {View,Text,StyleSheet,TouchableOpacity,TextInput,FlatList,ScrollView,SafeAreaView,StatusBar,ActivityIndicator,Alert,Dimensions} from 'react-native';
 
 const { width } = Dimensions.get('window');
 const API_BASE_URL = 'https://anilistmikilior1v1.p.rapidapi.com';
@@ -20,20 +19,21 @@ const AnimeApp = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
+  // Dados mock para demonstração (fallback quando API falha)
   const mockAnimes = [
-    { id: 1, title: 'Attack on Titan', episodes: 24, year: 2024, season: 'Verão', emoji: '🏛️' },
-    { id: 2, title: 'Demon Slayer', episodes: 12, year: 2024, season: 'Verão', emoji: '⚔️' },
-    { id: 3, title: 'My Hero Academia', episodes: 25, year: 2024, season: 'Verão', emoji: '🦸' },
-    { id: 4, title: 'Jujutsu Kaisen', episodes: 24, year: 2024, season: 'Verão', emoji: '👹' },
-    { id: 5, title: 'Chainsaw Man', episodes: 12, year: 2024, season: 'Outono', emoji: '🔗' },
-    { id: 6, title: 'Spy x Family', episodes: 12, year: 2024, season: 'Outono', emoji: '🕵️' },
+    { id: 1, title: { romaji: 'Attack on Titan' }, episodes: 24, startDate: { year: 2024 }, season: 'SUMMER', coverImage: { medium: '' } },
+    { id: 2, title: { romaji: 'Demon Slayer' }, episodes: 12, startDate: { year: 2024 }, season: 'SUMMER', coverImage: { medium: '' } },
+    { id: 3, title: { romaji: 'My Hero Academia' }, episodes: 25, startDate: { year: 2024 }, season: 'SUMMER', coverImage: { medium: '' } },
+    { id: 4, title: { romaji: 'Jujutsu Kaisen' }, episodes: 24, startDate: { year: 2024 }, season: 'SUMMER', coverImage: { medium: '' } },
+    { id: 5, title: { romaji: 'Chainsaw Man' }, episodes: 12, startDate: { year: 2024 }, season: 'FALL', coverImage: { medium: '' } },
+    { id: 6, title: { romaji: 'Spy x Family' }, episodes: 12, startDate: { year: 2024 }, season: 'FALL', coverImage: { medium: '' } },
   ];
 
   const mockMangas = [
-    { id: 1, title: 'One Piece', chapters: 1090, status: 'Ongoing', category: 'Ação', emoji: '🏴‍☠️' },
-    { id: 2, title: 'Naruto', chapters: 700, status: 'Completed', category: 'Ação', emoji: '🍥' },
-    { id: 3, title: 'Dragon Ball', chapters: 519, status: 'Completed', category: 'Ação', emoji: '🐉' },
-    { id: 4, title: 'Bleach', chapters: 686, status: 'Completed', category: 'Ação', emoji: '⚔️' },
+    { id: 1, title: { romaji: 'One Piece' }, chapters: 1090, status: 'RELEASING', genres: ['Action'], coverImage: { medium: '' } },
+    { id: 2, title: { romaji: 'Naruto' }, chapters: 700, status: 'FINISHED', genres: ['Action'], coverImage: { medium: '' } },
+    { id: 3, title: { romaji: 'Dragon Ball' }, chapters: 519, status: 'FINISHED', genres: ['Action'], coverImage: { medium: '' } },
+    { id: 4, title: { romaji: 'Bleach' }, chapters: 686, status: 'FINISHED', genres: ['Action'], coverImage: { medium: '' } },
   ];
 
   useEffect(() => {
@@ -41,87 +41,196 @@ const AnimeApp = () => {
     loadSearchHistory();
   }, []);
 
-  const makeAPIRequest = async (endpoint, options = {}) => {
+  // GraphQL queries
+  const getAnimeQuery = () => ({
+    query: `
+      query {
+        Page(page: 1, perPage: 20) {
+          media(type: ANIME, sort: POPULARITY_DESC) {
+            id
+            title {
+              romaji
+              english
+            }
+            episodes
+            startDate {
+              year
+            }
+            season
+            coverImage {
+              medium
+            }
+            genres
+            averageScore
+          }
+        }
+      }
+    `
+  });
+
+  const getMangaQuery = () => ({
+    query: `
+      query {
+        Page(page: 1, perPage: 20) {
+          media(type: MANGA, sort: POPULARITY_DESC) {
+            id
+            title {
+              romaji
+              english
+            }
+            chapters
+            status
+            genres
+            coverImage {
+              medium
+            }
+            averageScore
+          }
+        }
+      }
+    `
+  });
+
+  const getSearchQuery = (searchTerm, type = null) => ({
+    query: `
+      query ($search: String, $type: MediaType) {
+        Page(page: 1, perPage: 15) {
+          media(search: $search, type: $type, sort: POPULARITY_DESC) {
+            id
+            title {
+              romaji
+              english
+            }
+            episodes
+            chapters
+            startDate {
+              year
+            }
+            season
+            status
+            genres
+            coverImage {
+              medium
+            }
+            type
+            averageScore
+          }
+        }
+      }
+    `,
+    variables: {
+      search: searchTerm,
+      type: type
+    }
+  });
+
+  // Função para fazer requisições GraphQL
+  const makeGraphQLRequest = async (query) => {
     try {
-      const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      console.log('Fazendo requisição GraphQL para:', API_BASE_URL);
+      console.log('Query:', JSON.stringify(query, null, 2));
+      
+      const response = await fetch(API_BASE_URL, {
+        method: 'POST',
         headers: API_HEADERS,
-        ...options
+        body: JSON.stringify(query)
       });
 
+      console.log('Status da resposta:', response.status);
+      
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorText = await response.text();
+        console.error('Erro da API:', response.status, errorText);
+        throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
-      return { success: true, data };
+      console.log('Dados recebidos:', JSON.stringify(data, null, 2));
+      
+      if (data.errors) {
+        console.error('Erros GraphQL:', data.errors);
+        throw new Error(`GraphQL errors: ${JSON.stringify(data.errors)}`);
+      }
+
+      return { success: true, data: data.data };
     } catch (error) {
-      console.error(`API Request failed for ${endpoint}:`, error);
+      console.error('Erro na requisição GraphQL:', error);
       return { success: false, error: error.message };
     }
   };
 
+  // Função para carregar dados do backend
   const loadData = async () => {
     setLoading(true);
+    console.log('Iniciando carregamento de dados...');
+    
     try {
-      const [animesResult, mangasResult] = await Promise.all([
-        makeAPIRequest('/anime'),
-        makeAPIRequest('/manga')
-      ]);
-
-      if (animesResult.success && mangasResult.success) {
-        setAnimes(animesResult.data);
-        setMangas(mangasResult.data);
+      // Carregar animes
+      console.log('Carregando animes...');
+      const animeResult = await makeGraphQLRequest(getAnimeQuery());
+      
+      if (animeResult.success && animeResult.data?.Page?.media) {
+        console.log('Animes carregados com sucesso:', animeResult.data.Page.media.length);
+        setAnimes(animeResult.data.Page.media);
       } else {
-        console.log('API falhou, usando dados mock');
+        console.log('Falha ao carregar animes, usando mock data');
         setAnimes(mockAnimes);
+      }
+
+      // Carregar mangás
+      console.log('Carregando mangás...');
+      const mangaResult = await makeGraphQLRequest(getMangaQuery());
+      
+      if (mangaResult.success && mangaResult.data?.Page?.media) {
+        console.log('Mangás carregados com sucesso:', mangaResult.data.Page.media.length);
+        setMangas(mangaResult.data.Page.media);
+      } else {
+        console.log('Falha ao carregar mangás, usando mock data');
         setMangas(mockMangas);
       }
+
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Erro geral no carregamento:', error);
       Alert.alert('Aviso', 'Usando dados offline devido a problemas de conexão.');
       setAnimes(mockAnimes);
       setMangas(mockMangas);
     } finally {
       setLoading(false);
+      console.log('Carregamento de dados finalizado');
     }
   };
 
+  // Função para pesquisar na API
   const searchAPI = async (query) => {
     if (!query.trim()) return;
 
     setIsSearching(true);
+    console.log('Iniciando pesquisa para:', query);
+    
     try {
-      const [animeResult, mangaResult] = await Promise.all([
-        makeAPIRequest(`/anime/search?q=${encodeURIComponent(query)}`),
-        makeAPIRequest(`/manga/search?q=${encodeURIComponent(query)}`)
-      ]);
+      const searchResult = await makeGraphQLRequest(getSearchQuery(query.trim()));
 
-      const results = [];
-      
-      if (animeResult.success && animeResult.data) {
-        results.push(...animeResult.data.map(item => ({ ...item, type: 'anime' })));
-      }
-      
-      if (mangaResult.success && mangaResult.data) {
-        results.push(...mangaResult.data.map(item => ({ ...item, type: 'manga' })));
-      }
-
-      if (results.length === 0) {
+      if (searchResult.success && searchResult.data?.Page?.media) {
+        console.log('Pesquisa realizada com sucesso:', searchResult.data.Page.media.length, 'resultados');
+        setSearchResults(searchResult.data.Page.media);
+        return searchResult.data.Page.media;
+      } else {
+        console.log('Falha na pesquisa da API, usando busca local');
+        // Busca local nos dados mock como fallback
         const localAnimes = mockAnimes.filter(anime => 
-          anime.title.toLowerCase().includes(query.toLowerCase())
-        ).map(item => ({ ...item, type: 'anime' }));
+          anime.title.romaji.toLowerCase().includes(query.toLowerCase())
+        );
         
         const localMangas = mockMangas.filter(manga => 
-          manga.title.toLowerCase().includes(query.toLowerCase())
-        ).map(item => ({ ...item, type: 'manga' }));
+          manga.title.romaji.toLowerCase().includes(query.toLowerCase())
+        );
 
-        results.push(...localAnimes, ...localMangas);
+        const results = [...localAnimes, ...localMangas];
+        setSearchResults(results);
+        return results;
       }
-
-      setSearchResults(results);
-      return results;
     } catch (error) {
-      console.error('Search error:', error);
+      console.error('Erro na pesquisa:', error);
       Alert.alert('Erro', 'Falha na pesquisa. Tente novamente.');
       return [];
     } finally {
@@ -129,16 +238,9 @@ const AnimeApp = () => {
     }
   };
 
+  // Função para salvar pesquisa no histórico (local apenas - sem API para histórico)
   const saveSearchHistory = async (query) => {
     try {
-      const result = await makeAPIRequest('/search-history', {
-        method: 'POST',
-        body: JSON.stringify({
-          query: query,
-          search_date: new Date().toISOString()
-        })
-      });
-
       const newHistoryItem = {
         id: Date.now(),
         query: query,
@@ -149,28 +251,18 @@ const AnimeApp = () => {
         const filtered = prev.filter(item => item.query.toLowerCase() !== query.toLowerCase());
         return [newHistoryItem, ...filtered].slice(0, 20);
       });
-
-      if (result.success) {
-        loadSearchHistory();
-      }
     } catch (error) {
-      console.error('Error saving search:', error);
+      console.error('Erro ao salvar histórico:', error);
     }
   };
 
+  // Função para carregar histórico de pesquisas (local apenas)
   const loadSearchHistory = async () => {
-    try {
-      const result = await makeAPIRequest('/search-history');
-      
-      if (result.success && result.data) {
-        const historyData = Array.isArray(result.data) ? result.data : result.data.data || [];
-        setSearchHistory(historyData);
-      }
-    } catch (error) {
-      console.error('Error loading search history:', error);
-    }
+    // Como não há endpoint específico para histórico, mantemos apenas local
+    console.log('Histórico carregado do armazenamento local');
   };
 
+  // Função para limpar histórico
   const clearHistory = async () => {
     Alert.alert(
       'Limpar Histórico',
@@ -180,30 +272,16 @@ const AnimeApp = () => {
         { 
           text: 'Limpar', 
           style: 'destructive',
-          onPress: async () => {
-            try {
-              const result = await makeAPIRequest('/search-history', {
-                method: 'DELETE'
-              });
-
-              setSearchHistory([]);
-
-              if (result.success) {
-                Alert.alert('Sucesso', 'Histórico limpo com sucesso!');
-              } else {
-                Alert.alert('Aviso', 'Histórico limpo localmente. Problemas de conexão com servidor.');
-              }
-            } catch (error) {
-              console.error('Error clearing history:', error);
-              setSearchHistory([]); // Limpa localmente mesmo com erro
-              Alert.alert('Aviso', 'Histórico limpo localmente. Verifique sua conexão.');
-            }
+          onPress: () => {
+            setSearchHistory([]);
+            Alert.alert('Sucesso', 'Histórico limpo com sucesso!');
           }
         }
       ]
     );
   };
 
+  // Função de pesquisa
   const handleSearch = async (query) => {
     if (query.trim()) {
       const cleanQuery = query.trim();
@@ -212,49 +290,118 @@ const AnimeApp = () => {
     }
   };
 
+  // Função para obter emoji baseado no gênero
+  const getEmojiForGenre = (genres) => {
+    if (!genres || genres.length === 0) return '📺';
+    
+    const genre = genres[0].toLowerCase();
+    const emojiMap = {
+      'action': '⚔️',
+      'adventure': '🗺️',
+      'comedy': '😄',
+      'drama': '🎭',
+      'fantasy': '🧙‍♂️',
+      'horror': '👻',
+      'romance': '💕',
+      'sci-fi': '🚀',
+      'slice of life': '🌸',
+      'sports': '⚽',
+      'supernatural': '👹',
+      'thriller': '🔍'
+    };
+    
+    return emojiMap[genre] || '📺';
+  };
+
+  // Função para traduzir season
+  const translateSeason = (season, year) => {
+    const seasonMap = {
+      'WINTER': 'Inverno',
+      'SPRING': 'Primavera', 
+      'SUMMER': 'Verão',
+      'FALL': 'Outono'
+    };
+    return `${seasonMap[season] || season || ''} ${year || ''}`.trim();
+  };
+
+  // Função para traduzir status
+  const translateStatus = (status) => {
+    const statusMap = {
+      'RELEASING': 'Em Andamento',
+      'FINISHED': 'Finalizado',
+      'NOT_YET_RELEASED': 'Não Lançado',
+      'CANCELLED': 'Cancelado',
+      'HIATUS': 'Em Hiato'
+    };
+    return statusMap[status] || status || 'Desconhecido';
+  };
+
+  // Componente para renderizar anime
   const renderAnime = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-      <Text style={styles.cardEmoji}>{item.emoji || '📺'}</Text>
-      <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+      <Text style={styles.cardEmoji}>{getEmojiForGenre(item.genres)}</Text>
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        {item.title?.romaji || item.title?.english || 'Título não disponível'}
+      </Text>
       <Text style={styles.cardSubtitle}>
-        {item.episodes || item.episodeCount || 'N/A'} episódios
+        {item.episodes || 'N/A'} episódios
       </Text>
       <Text style={styles.cardSeason}>
-        {item.season || item.startDate?.year || item.year || '2024'}
+        {translateSeason(item.season, item.startDate?.year)}
       </Text>
+      {item.averageScore && (
+        <Text style={styles.cardScore}>⭐ {item.averageScore}%</Text>
+      )}
     </TouchableOpacity>
   );
 
+  // Componente para renderizar manga
   const renderManga = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-      <Text style={styles.cardEmoji}>{item.emoji || '📖'}</Text>
-      <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+      <Text style={styles.cardEmoji}>{getEmojiForGenre(item.genres)}</Text>
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        {item.title?.romaji || item.title?.english || 'Título não disponível'}
+      </Text>
       <Text style={styles.cardSubtitle}>
-        {item.chapters || item.chapterCount || 'N/A'} capítulos
+        {item.chapters || 'N/A'} capítulos
       </Text>
       <Text style={[styles.cardStatus, { 
-        color: (item.status === 'Ongoing' || item.status === 'RELEASING') ? '#4ade80' : 
-              (item.status === 'Completed' || item.status === 'FINISHED') ? '#60a5fa' : '#facc15' 
+        color: (item.status === 'RELEASING') ? '#4ade80' : 
+              (item.status === 'FINISHED') ? '#60a5fa' : '#facc15' 
       }]}>
-        {item.status || 'Unknown'}
+        {translateStatus(item.status)}
       </Text>
+      {item.averageScore && (
+        <Text style={styles.cardScore}>⭐ {item.averageScore}%</Text>
+      )}
     </TouchableOpacity>
   );
 
+  // Componente para renderizar resultado de pesquisa
   const renderSearchResult = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
-      <Text style={styles.cardEmoji}>{item.type === 'anime' ? '📺' : '📖'}</Text>
-      <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+      <Text style={styles.cardEmoji}>
+        {item.type === 'ANIME' ? '📺' : '📖'}
+      </Text>
+      <Text style={styles.cardTitle} numberOfLines={2}>
+        {item.title?.romaji || item.title?.english || 'Título não disponível'}
+      </Text>
       <Text style={styles.cardSubtitle}>
-        {item.type === 'anime' ? 
-          `${item.episodes || item.episodeCount || 'N/A'} episódios` : 
-          `${item.chapters || item.chapterCount || 'N/A'} capítulos`
+        {item.type === 'ANIME' ? 
+          `${item.episodes || 'N/A'} episódios` : 
+          `${item.chapters || 'N/A'} capítulos`
         }
       </Text>
-      <Text style={styles.cardCategory}>{item.type === 'anime' ? 'Anime' : 'Mangá'}</Text>
+      <Text style={styles.cardCategory}>
+        {item.type === 'ANIME' ? 'Anime' : 'Mangá'}
+      </Text>
+      {item.averageScore && (
+        <Text style={styles.cardScore}>⭐ {item.averageScore}%</Text>
+      )}
     </TouchableOpacity>
   );
 
+  // Componente para renderizar histórico
   const renderHistory = ({ item }) => (
     <TouchableOpacity 
       style={styles.historyItem}
@@ -280,14 +427,15 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
+  // Agrupar dados por temporada/categoria
   const groupAnimesBySeason = () => {
     const dataToGroup = searchResults.length > 0 
-      ? searchResults.filter(item => item.type === 'anime')
+      ? searchResults.filter(item => item.type === 'ANIME' || !item.type)
       : animes;
       
     const grouped = {};
     dataToGroup.forEach(anime => {
-      const season = anime.season || anime.startDate?.year || 'Outros';
+      const season = translateSeason(anime.season, anime.startDate?.year) || 'Outros';
       if (!grouped[season]) grouped[season] = [];
       grouped[season].push(anime);
     });
@@ -296,12 +444,12 @@ const AnimeApp = () => {
 
   const groupMangasByCategory = () => {
     const dataToGroup = searchResults.length > 0 
-      ? searchResults.filter(item => item.type === 'manga')
+      ? searchResults.filter(item => item.type === 'MANGA' || (item.chapters && !item.episodes))
       : mangas;
       
     const grouped = {};
     dataToGroup.forEach(manga => {
-      const category = manga.category || manga.genres?.[0] || 'Outros';
+      const category = manga.genres?.[0] || 'Outros';
       if (!grouped[category]) grouped[category] = [];
       grouped[category].push(manga);
     });
@@ -314,7 +462,7 @@ const AnimeApp = () => {
         <StatusBar barStyle="light-content" backgroundColor="#1e3a8a" />
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#0891b2" />
-          <Text style={styles.loadingText}>Carregando dados...</Text>
+          <Text style={styles.loadingText}>Carregando dados da API...</Text>
         </View>
       </SafeAreaView>
     );
@@ -324,9 +472,11 @@ const AnimeApp = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1e3a8a" />
       
+      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>AniPower</Text>
         
+        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Text style={styles.searchIconText}>🔍</Text>
           <TextInput
@@ -344,13 +494,14 @@ const AnimeApp = () => {
         </View>
       </View>
 
+      {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'animes' && (
           <View style={styles.tabContent}>
             {searchResults.length > 0 && (
               <View style={styles.searchResultsHeader}>
                 <Text style={styles.searchResultsTitle}>
-                  🔍 Resultados da pesquisa: "{searchQuery}"
+                  🔍 Resultados: "{searchQuery}"
                 </Text>
                 <TouchableOpacity 
                   onPress={() => {
@@ -374,7 +525,7 @@ const AnimeApp = () => {
                   numColumns={2}
                   scrollEnabled={false}
                   contentContainerStyle={styles.grid}
-                  columnWrapperStyle={styles.row}
+                  columnWrapperStyle={seasonAnimes.length > 1 ? styles.row : null}
                 />
               </View>
             ))}
@@ -386,7 +537,7 @@ const AnimeApp = () => {
             {searchResults.length > 0 && (
               <View style={styles.searchResultsHeader}>
                 <Text style={styles.searchResultsTitle}>
-                  🔍 Resultados da pesquisa: "{searchQuery}"
+                  🔍 Resultados: "{searchQuery}"
                 </Text>
                 <TouchableOpacity 
                   onPress={() => {
@@ -410,7 +561,7 @@ const AnimeApp = () => {
                   numColumns={2}
                   scrollEnabled={false}
                   contentContainerStyle={styles.grid}
-                  columnWrapperStyle={styles.row}
+                  columnWrapperStyle={categoryMangas.length > 1 ? styles.row : null}
                 />
               </View>
             ))}
@@ -446,6 +597,7 @@ const AnimeApp = () => {
         )}
       </ScrollView>
 
+      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity
           style={[styles.navButton, activeTab === 'animes' && styles.navButtonActive]}
@@ -629,6 +781,13 @@ const styles = StyleSheet.create({
     color: '#facc15',
     fontWeight: '600',
     textAlign: 'center',
+  },
+  cardScore: {
+    fontSize: 11,
+    color: '#fbbf24',
+    fontWeight: '600',
+    textAlign: 'center',
+    marginTop: 4,
   },
   historyHeader: {
     flexDirection: 'row',
