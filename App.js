@@ -1,4 +1,4 @@
-// App.js - React Native Mobile App
+
 import React, { useState, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, SafeAreaView, StatusBar, Alert, FlatList, Dimensions, ActivityIndicator } from 'react-native';
 
@@ -20,7 +20,6 @@ const AnimeApp = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Dados mock para demonstração (fallback quando API falha)
   const mockAnimes = [
     { id: 1, title: 'Attack on Titan', episodes: 24, year: 2024, season: 'Verão', emoji: '🏛️' },
     { id: 2, title: 'Demon Slayer', episodes: 12, year: 2024, season: 'Verão', emoji: '⚔️' },
@@ -42,7 +41,6 @@ const AnimeApp = () => {
     loadSearchHistory();
   }, []);
 
-  // Função para fazer requisição à API com tratamento de erro
   const makeAPIRequest = async (endpoint, options = {}) => {
     try {
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -62,11 +60,9 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para carregar dados do backend
   const loadData = async () => {
     setLoading(true);
     try {
-      // Tentar carregar da API primeiro
       const [animesResult, mangasResult] = await Promise.all([
         makeAPIRequest('/anime'),
         makeAPIRequest('/manga')
@@ -76,7 +72,6 @@ const AnimeApp = () => {
         setAnimes(animesResult.data);
         setMangas(mangasResult.data);
       } else {
-        // Fallback para dados mock
         console.log('API falhou, usando dados mock');
         setAnimes(mockAnimes);
         setMangas(mockMangas);
@@ -91,13 +86,11 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para pesquisar na API
   const searchAPI = async (query) => {
     if (!query.trim()) return;
 
     setIsSearching(true);
     try {
-      // Pesquisar animes e mangás
       const [animeResult, mangaResult] = await Promise.all([
         makeAPIRequest(`/anime/search?q=${encodeURIComponent(query)}`),
         makeAPIRequest(`/manga/search?q=${encodeURIComponent(query)}`)
@@ -114,7 +107,6 @@ const AnimeApp = () => {
       }
 
       if (results.length === 0) {
-        // Busca local nos dados mock como fallback
         const localAnimes = mockAnimes.filter(anime => 
           anime.title.toLowerCase().includes(query.toLowerCase())
         ).map(item => ({ ...item, type: 'anime' }));
@@ -137,10 +129,8 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para salvar pesquisa no histórico
   const saveSearchHistory = async (query) => {
     try {
-      // Tentar salvar na API
       const result = await makeAPIRequest('/search-history', {
         method: 'POST',
         body: JSON.stringify({
@@ -149,7 +139,6 @@ const AnimeApp = () => {
         })
       });
 
-      // Atualizar estado local independentemente do sucesso da API
       const newHistoryItem = {
         id: Date.now(),
         query: query,
@@ -162,16 +151,13 @@ const AnimeApp = () => {
       });
 
       if (result.success) {
-        // Recarregar histórico da API se salvou com sucesso
         loadSearchHistory();
       }
     } catch (error) {
       console.error('Error saving search:', error);
-      // Mesmo com erro na API, mantém o histórico local
     }
   };
 
-  // Função para carregar histórico de pesquisas
   const loadSearchHistory = async () => {
     try {
       const result = await makeAPIRequest('/search-history');
@@ -185,7 +171,6 @@ const AnimeApp = () => {
     }
   };
 
-  // Função para limpar histórico
   const clearHistory = async () => {
     Alert.alert(
       'Limpar Histórico',
@@ -197,12 +182,10 @@ const AnimeApp = () => {
           style: 'destructive',
           onPress: async () => {
             try {
-              // Limpar na API
               const result = await makeAPIRequest('/search-history', {
                 method: 'DELETE'
               });
 
-              // Limpar estado local independentemente do resultado da API
               setSearchHistory([]);
 
               if (result.success) {
@@ -221,7 +204,6 @@ const AnimeApp = () => {
     );
   };
 
-  // Função de pesquisa
   const handleSearch = async (query) => {
     if (query.trim()) {
       const cleanQuery = query.trim();
@@ -230,7 +212,6 @@ const AnimeApp = () => {
     }
   };
 
-  // Componente para renderizar anime
   const renderAnime = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
       <Text style={styles.cardEmoji}>{item.emoji || '📺'}</Text>
@@ -244,7 +225,6 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
-  // Componente para renderizar manga
   const renderManga = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
       <Text style={styles.cardEmoji}>{item.emoji || '📖'}</Text>
@@ -261,7 +241,6 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
-  // Componente para renderizar resultado de pesquisa
   const renderSearchResult = ({ item }) => (
     <TouchableOpacity style={styles.card} activeOpacity={0.8}>
       <Text style={styles.cardEmoji}>{item.type === 'anime' ? '📺' : '📖'}</Text>
@@ -276,7 +255,6 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
-  // Componente para renderizar histórico
   const renderHistory = ({ item }) => (
     <TouchableOpacity 
       style={styles.historyItem}
@@ -302,7 +280,6 @@ const AnimeApp = () => {
     </TouchableOpacity>
   );
 
-  // Agrupar dados por temporada/categoria
   const groupAnimesBySeason = () => {
     const dataToGroup = searchResults.length > 0 
       ? searchResults.filter(item => item.type === 'anime')
@@ -347,11 +324,9 @@ const AnimeApp = () => {
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#1e3a8a" />
       
-      {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>AniPower</Text>
         
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <Text style={styles.searchIconText}>🔍</Text>
           <TextInput
@@ -369,7 +344,6 @@ const AnimeApp = () => {
         </View>
       </View>
 
-      {/* Content */}
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {activeTab === 'animes' && (
           <View style={styles.tabContent}>
@@ -472,7 +446,6 @@ const AnimeApp = () => {
         )}
       </ScrollView>
 
-      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity
           style={[styles.navButton, activeTab === 'animes' && styles.navButtonActive]}
